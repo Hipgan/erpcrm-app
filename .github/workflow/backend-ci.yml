@@ -1,0 +1,41 @@
+name: Backend CI
+
+on:
+  push:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+    branches: [ main ]
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v3
+
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: ⚙️ Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: 🐳 Build Docker image for backend
+      run: |
+        docker build -f backend/Dockerfile -t my-backend-test ./backend
+
+    - name: ✅ Run container to test if it starts
+      run: |
+        docker run -d -p 8000:8000 --name backend-test my-backend-test
+        sleep 5
+        curl --fail http://localhost:8000 || (docker logs backend-test && exit 1)
+
+    - name: 🧹 Clean up
+      run: docker rm -f backend-test || true
